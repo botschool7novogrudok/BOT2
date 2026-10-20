@@ -1,56 +1,42 @@
 import asyncio
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.header import Header
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 
 TG_TOKEN = os.getenv("BOT_TOKEN")
-SMTP_SERVER = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
-EMAIL_LOGIN = os.getenv("SMTP_USER")
-EMAIL_PASSWORD = os.getenv("SMTP_PASS")
-EMAIL_TO = os.getenv("MAIL_TO")
+OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 
-required = ["BOT_TOKEN", "SMTP_USER", "SMTP_PASS", "MAIL_TO"]
+required = ["BOT_TOKEN", "OWNER_ID"]
 missing = [name for name in required if not os.getenv(name)]
 if missing:
     raise ValueError("Не заданы переменные: " + ", ".join(missing))
 
+bot = Bot(token=TG_TOKEN)
+dp = Dispatcher()
 
-async def send_email(name: str, text: str):
-    subject = f"Обращение от {name}"
-    body = f"Пользователь: {name}\n\nТекст сообщения:\n{text}"
 
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = EMAIL_LOGIN
-    msg["To"] = EMAIL_TO
-
-    with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-        server.login(EMAIL_LOGIN, EMAIL_PASSWORD)
-        server.send_message(msg)
+async def forward_to_owner(name: str, text: str):
+    message_text = f"Обращение от {name}:\n\n{text}"
+    await bot.send_message(OWNER_ID, message_text)
 
 
 async def cmd_start(message: types.Message):
-    await message.answer("Здравствуйте! Напишите ваше обращение — я передам его на почту.")
+    await message.answer("Здравствуйте! Напишите ваше обращение — я передам его напрямую.")
 
 
 async def handle_message(message: types.Message):
     name = message.from_user.full_name or "Неизвестный пользователь"
     text = message.text or "(без текста)"
     try:
-        await send_email(name, text)
-        await message.answer("Ваше сообщение успешно отправлено!")
+        await forward_to_owner(name, text)
+        await message.answer("Ваше сообщение передано. Спасибо за обращение!")
+        print(f"Обращение от {name} переслано владельцу")
     except Exception as e:
-        print(f"Ошибка отправки почты: {e}")
-        await message.answer("Произошла ошибка при отправке. Попробуйте позже.")
+        print(f"Ошибка пересылки: {e}")
+        await message.answer("Произошла ошибка при передаче. Попробуйте позже.")
 
 
 async def main():
-    bot = Bot(token=TG_TOKEN)
-    dp = Dispatcher()
     dp.message.register(cmd_start, Command("start"))
     dp.message.register(handle_message)
     await dp.start_polling(bot)
