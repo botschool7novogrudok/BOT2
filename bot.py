@@ -1,78 +1,58 @@
+import asyncio
 import os
 import smtplib
-import json
-import telebot
 from email.mime.text import MIMEText
-from datetime import datetime, timezone, timedelta
+from email.header import Header
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from dotenv import load_dotenv
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
-SMTP_USER = os.environ["SMTP_USER"]
-SMTP_PASS = os.environ["SMTP_PASS"]
-MAIL_TO   = os.environ["MAIL_TO"]
+load_dotenv()  # загружает .env
 
-COUNTER_FILE = "/data/counter.json"
+# --- Чтение переменных окружения ---
+TG_TOKEN = os.getenv("TG_TOKEN")
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = int(os.getenv("SMTP_PORT"))
+EMAIL_LOGIN = os.getenv("EMAIL_LOGIN")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+EMAIL_TO = os.getenv("EMAIL_TO")
 
-bot = telebot.TeleBot(BOT_TOKEN)
+if not all([TG_TOKEN, SMTP_SERVER, EMAIL_LOGIN, EMAIL_PASSWORD, EMAIL_TO]):
+    raise ValueError("Не все переменные окружения заданы. Проверьте .env")
 
-MINSK = timezone(timedelta(hours=3))
+async def send_email(name: str, text: str):
+    subject = f"От {name}"
+    body = f"Пользователь: {name}\n\nТекст сообщения:\n{text}"
 
-
-def next_number():
-    n = 1
-    try:
-        with open(COUNTER_FILE) as f:
-            n = json.load(f) + 1
-    except (FileNotFoundError, ValueError):
-        pass
-    os.makedirs("/data", exist_ok=True)
-    with open(COUNTER_FILE, "w") as f:
-        json.dump(n, f)
-    return n
-
-
-def build_appeal(text, user):
-    num = next_number()
-    now = datetime.now(MINSK).strftime("%d.%m.%Y %H:%M")
-    username = f"@{user.username}" if user.username else "нет username"
-    subject = f"Обращение №{num} от {user.full_name}"
-    body = (
-        f"ОБРАЩЕНИЕ №{num}\n"
-        f"Дата и время: {now}\n\n"
-        f"Отправитель: {user.full_name}\n"
-        f"Username Telegram: {username}\n"
-        f"Telegram ID: {user.id}\n\n"
-        f"Текст обращения:\n"
-        f"{text}"
-    )
-    return subject, body
-
-
-def send_email(subject, body):
     msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = subject
-    msg["From"] = SMTP_USER
-    msg["To"] = MAIL_TO
-    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as s:
-        s.login(SMTP_USER, SMTP_PASS)
-        s.send_message(msg)
+    msg["Subject"] = Header(subject, "utf-8")
+    msg["From"] = EMAIL_LOGIN
+    msg["To"] = EMAIL_TO
 
+    with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+        server.login(EMAIL_LOGIN, EMAIL_PASSWORD)
+        server.send_message(msg)
 
-@bot.message_handler(commands=["start"])
-def start(m):
-    bot.reply_to(m, "Привет! Напишите ваше обращение — я передам его на почту.")
+async def cmd_start(message: types.Message):
+    await message.answer("Спасибо, что написали! Ваше сообщение будет отправлено на почту.")
 
-
-@bot.message_handler(content_types=["text"])
-def handle(m):
+async def handle_message(message: types.Message):
+    name = message.from_user.full_name or "Неизвестный пользователь"
+    text = message.text or "(без текста)"
     try:
-        subject, body = build_appeal(m.text, m.from_user)
-        send_email(subject, body)
-        bot.reply_to(m, f"Ваше обращение №{body.split('№')[1].split()[0]} отправлено.")
+        await send_email(name, text)
+        await message.answer("Ваше сообщение успешно отправлено!")
     except Exception as e:
-        print("Ошибка:", e)
-        bot.reply_to(m, "Не получилось отправить, попробуйте позже.")
+        # Для учебного проекта можно логировать в консоль
+        print(f"Ошибка отправки почты: {e}")
+        await message.answer("Произошла ошибка при отправке. Попробуйте позже.")
 
+async def main():
+    bot = Bot(token=TG_TOKEN)
+    dp = Dispatcher()
+    dp.message.register(cmd_start, Command("start"))
+    dp.message.register(handle_message)
+    await dp.start_polling(bot)
 
-bot.infinity_polling()
+if __name__ == "__main__":
+    asyncio.run(main())
