@@ -15,22 +15,20 @@ bot = Bot(token=TG_TOKEN)
 dp = Dispatcher()
 
 
-async def forward_to_owner(name: str, text: str):
-    message_text = f"Обращение от {name}:\n\n{text}"
-    await bot.send_message(OWNER_ID, message_text)
+async def forward_to_owner(text: str):
+    await bot.send_message(OWNER_ID, f"Новое обращение:\n\n{text}")
 
 
 async def cmd_start(message: types.Message):
-    await message.answer("Здравствуйте! Напишите ваше обращение — я передам его напрямую.")
+    await message.answer("Здравствуйте! Напишите ваше обращение — оно будет передано анонимно.")
 
 
 async def handle_message(message: types.Message):
-    name = message.from_user.full_name or "Неизвестный пользователь"
     text = message.text or "(без текста)"
     try:
-        await forward_to_owner(name, text)
-        await message.answer("Ваше сообщение передано. Спасибо за обращение!")
-        print(f"Обращение от {name} переслано владельцу")
+        await forward_to_owner(text)
+        await message.answer("Ваше обращение отправлено анонимно. Спасибо!")
+        print("Анонимное обращение переслано владельцу")
     except Exception as e:
         print(f"Ошибка пересылки: {e}")
         await message.answer("Произошла ошибка при передаче. Попробуйте позже.")
