@@ -10,14 +10,14 @@ from dotenv import load_dotenv
 load_dotenv()  # загружает .env
 
 # --- Чтение переменных окружения ---
-TG_TOKEN = os.getenv("TG_TOKEN")
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = int(os.getenv("SMTP_PORT"))
-EMAIL_LOGIN = os.getenv("EMAIL_LOGIN")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-EMAIL_TO = os.getenv("EMAIL_TO")
+TG_TOKEN = os.getenv("BOT_TOKEN")
+SMTP_SERVER = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+EMAIL_LOGIN = os.getenv("SMTP_USER")
+EMAIL_PASSWORD = os.getenv("SMTP_PASS")
+EMAIL_TO = os.getenv("MAIL_TO")
 
-required = ["BOT_TOKEN", "SMTP_USER", "SMTP_PASS", "MAIL_TO", "SMTP_PORT", "SMTP_HOST"]
+required = ["BOT_TOKEN", "SMTP_USER", "SMTP_PASS", "MAIL_TO"]
 missing = [name for name in required if not os.getenv(name)]
 if missing:
     raise ValueError("Не заданы переменные: " + ", ".join(missing))
