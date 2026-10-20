@@ -1,58 +1,49 @@
-import asyncio
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.header import Header
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from dotenv import load_dotenv
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-load_dotenv()  # загружает .env
+# Вставь сюда свои данные (лучше вынести их в переменные окружения!)
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+GMAIL_EMAIL = os.getenv("GMAIL_EMAIL")
+GMAIL_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
-# --- Чтение переменных окружения ---
-TG_TOKEN = os.getenv("TG_TOKEN")
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = int(os.getenv("SMTP_PORT"))
-EMAIL_LOGIN = os.getenv("EMAIL_LOGIN")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-EMAIL_TO = os.getenv("EMAIL_TO")
+bot = Bot(token=TELEGRAM_TOKEN)
+dp = Dispatcher()
 
-if not all([TG_TOKEN, SMTP_SERVER, EMAIL_LOGIN, EMAIL_PASSWORD, EMAIL_TO]):
-    raise ValueError("Не все переменные окружения заданы. Проверьте .env")
+def send_email(from_name, text):
+    msg = MIMEMultipart()
+    msg["From"] = GMAIL_EMAIL
+    msg["To"] = GMAIL_EMAIL  # можно поменять на другую почту
+    msg["Subject"] = f"Обращение от {from_name}"
 
-async def send_email(name: str, text: str):
-    subject = f"От {name}"
-    body = f"Пользователь: {name}\n\nТекст сообщения:\n{text}"
+    body = f"Отправитель: {from_name}\n\nТекст обращения:\n{text}"
+    msg.attach(MIMEText(body, "plain"))
 
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = EMAIL_LOGIN
-    msg["To"] = EMAIL_TO
-
-    with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-        server.login(EMAIL_LOGIN, EMAIL_PASSWORD)
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(GMAIL_EMAIL, GMAIL_PASSWORD)
         server.send_message(msg)
 
+@dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer("Спасибо, что написали! Ваше сообщение будет отправлено на почту.")
+    await message.answer("Здравствуйте! Вы можете отправить своё обращение — мы его получим.")
 
+@dp.message()
 async def handle_message(message: types.Message):
-    name = message.from_user.full_name or "Неизвестный пользователь"
-    text = message.text or "(без текста)"
-    try:
-        await send_email(name, text)
-        await message.answer("Ваше сообщение успешно отправлено!")
-    except Exception as e:
-        # Для учебного проекта можно логировать в консоль
-        print(f"Ошибка отправки почты: {e}")
-        await message.answer("Произошла ошибка при отправке. Попробуйте позже.")
+    user = message.from_user
+    name = user.full_name or user.username or "Неизвестный"
+    text = message.text or "(текст отсутствует)"
+
+    # Отправляем письмо
+    send_email(name, text)
+
+    await message.answer("Ваше обращение принято.")
 
 async def main():
-    bot = Bot(token=TG_TOKEN)
-    dp = Dispatcher()
-    dp.message.register(cmd_start, Command("start"))
-    dp.message.register(handle_message)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
