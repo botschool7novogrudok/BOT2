@@ -43,7 +43,7 @@ async def handle_message(message: types.Message):
     text = message.text or "(без текста)"
     try:
         await forward_to_owner(text)
-        await message.answer("Ваше обращение отправлено анонимно. Спасибо!")
+        await message.answer("Ваше обращение отправлено. Спасибо!")
         print("Анонимное обращение переслано владельцу")
     except Exception as e:
         print(f"Ошибка пересылки: {e}")
