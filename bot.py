@@ -12,7 +12,6 @@ MAIL_TO   = os.environ["MAIL_TO"]     # адрес, куда приходят п
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-
 def send_email(text, sender_info):
     body = f"От кого: {sender_info}\n\n{text}"
     msg = MIMEText(body, "plain", "utf-8")
