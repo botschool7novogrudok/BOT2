@@ -17,8 +17,10 @@ EMAIL_LOGIN = os.getenv("EMAIL_LOGIN")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 EMAIL_TO = os.getenv("EMAIL_TO")
 
-if not all([TG_TOKEN, SMTP_SERVER, EMAIL_LOGIN, EMAIL_PASSWORD, EMAIL_TO]):
-    raise ValueError("Не все переменные окружения заданы. Проверьте .env")
+required = ["BOT_TOKEN", "SMTP_USER", "SMTP_PASS", "MAIL_TO", "SMTP_PORT", "SMTP_HOST"]
+missing = [name for name in required if not os.getenv(name)]
+if missing:
+    raise ValueError("Не заданы переменные: " + ", ".join(missing))
 
 async def send_email(name: str, text: str):
     subject = f"От {name}"
